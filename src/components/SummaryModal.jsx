@@ -1,0 +1,126 @@
+import { useState } from 'react';
+import { X, Brain, List, FileText, Lightbulb } from 'lucide-react';
+
+const SummaryModal = ({ resource, onClose }) => {
+  const [summaryType, setSummaryType] = useState('bullets');
+
+  const summaries = {
+    bullets: {
+      title: 'Bullet Notes',
+      icon: List,
+      content: [
+        'Core concepts and fundamental principles explained in detail',
+        'Practical examples and real-world applications demonstrated',
+        'Key takeaways for understanding and implementation',
+        'Common pitfalls and best practices highlighted',
+        'Recommended next steps for continued learning'
+      ]
+    },
+    paragraph: {
+      title: 'Paragraph Summary',
+      icon: FileText,
+      content: `This comprehensive resource provides an in-depth exploration of ${resource.title.split(' - ')[0]}, covering essential concepts from foundational principles to advanced applications. The content is structured to guide learners through a logical progression, starting with basic terminology and building up to complex real-world scenarios. Throughout the material, practical examples are interspersed to reinforce understanding, and key insights are highlighted to aid retention. The resource is particularly valuable for ${resource.difficulty.toLowerCase()} learners, offering clear explanations and comprehensive coverage of the topic.`
+    },
+    revision: {
+      title: 'Ultra-Short Revision Notes',
+      icon: Lightbulb,
+      content: [
+        'Key Term 1: Definition in one sentence',
+        'Key Term 2: Core concept summarized',
+        'Key Term 3: Essential principle explained',
+        'Main Formula/Concept: Brief explanation',
+        'Important Tip: Quick reminder note'
+      ]
+    }
+  };
+
+  const currentSummary = summaries[summaryType];
+  const Icon = currentSummary.icon;
+
+  return (
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden animate-scale-in">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <Brain className="text-white" size={20} />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">AI Summary</h2>
+              <p className="text-sm text-gray-500 mt-1">{resource.title}</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-gray-100 rounded-lg transition-colors duration-200"
+          >
+            <X size={24} className="text-gray-500" />
+          </button>
+        </div>
+
+        {/* Summary Type Selector */}
+        <div className="flex space-x-2 p-4 bg-gray-50 border-b border-gray-200">
+          {Object.entries(summaries).map(([key, summary]) => {
+            const SummaryIcon = summary.icon;
+            return (
+              <button
+                key={key}
+                onClick={() => setSummaryType(key)}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 ${
+                  summaryType === key
+                    ? 'bg-darkBlue-600 text-white shadow-md'
+                    : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
+                }`}
+              >
+                <SummaryIcon size={18} />
+                <span>{summary.title}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Content */}
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-280px)]">
+          <div className="flex items-center space-x-2 mb-4">
+            <Icon className="text-darkBlue-600" size={20} />
+            <h3 className="text-lg font-semibold text-gray-900">{currentSummary.title}</h3>
+          </div>
+
+          {summaryType === 'paragraph' ? (
+            <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+              {currentSummary.content}
+            </p>
+          ) : (
+            <ul className="space-y-3">
+              {currentSummary.content.map((point, index) => (
+                <li key={index} className="flex items-start">
+                  <span className="text-darkBlue-500 mr-3 mt-1">
+                    {summaryType === 'revision' ? '→' : '•'}
+                  </span>
+                  <span className="text-gray-700 leading-relaxed">{point}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
+          <div className="text-sm text-gray-500">
+            Generated by AI • {summaryType === 'paragraph' ? 'Full summary' : `${currentSummary.content.length} key points`}
+          </div>
+          <button
+            onClick={onClose}
+            className="px-6 py-2 bg-darkBlue-600 text-white rounded-lg hover:bg-darkBlue-700 transition-colors duration-200"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default SummaryModal;
+
