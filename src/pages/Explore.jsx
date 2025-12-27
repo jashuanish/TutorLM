@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
-import { Video, FileText, BookOpen, Filter, Star, Clock, ExternalLink, MessageSquare, Brain, List, Loader2, AlertCircle } from 'lucide-react';
+import { Video, FileText, BookOpen, Filter, Star, Clock, ExternalLink, MessageSquare, Brain, List, Loader2, AlertCircle, Sparkles } from 'lucide-react';
 import { sampleResources } from '../data/sampleData';
 import TranscriptModal from '../components/TranscriptModal';
 import SummaryModal from '../components/SummaryModal';
@@ -10,11 +10,13 @@ import ConceptMap from '../components/ConceptMap';
 const Explore = () => {
   const [searchParams] = useSearchParams();
   const query = searchParams.get('q') || '';
+  const isPDFMode = searchParams.get('pdf') === 'true';
   
   const [resources, setResources] = useState([]);
   const [filteredResources, setFilteredResources] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [pdfAnalysis, setPdfAnalysis] = useState(null);
   const [filters, setFilters] = useState({
     difficulty: 'all',
     duration: 'all',
@@ -29,6 +31,24 @@ const Explore = () => {
 
   // Fetch resources from API
   useEffect(() => {
+    // Check for PDF analysis data in sessionStorage
+    if (isPDFMode) {
+      const storedAnalysis = sessionStorage.getItem('pdfAnalysis');
+      if (storedAnalysis) {
+        try {
+          const pdfData = JSON.parse(storedAnalysis);
+          setPdfAnalysis(pdfData);
+          setResources(pdfData.resources || []);
+          applyFilters(pdfData.resources || []);
+          setLoading(false);
+          return;
+        } catch (err) {
+          console.error('Error parsing PDF analysis:', err);
+          sessionStorage.removeItem('pdfAnalysis');
+        }
+      }
+    }
+
     const fetchResources = async () => {
       if (!query || query.trim() === '') {
         // Show sample data when no query
@@ -71,7 +91,7 @@ const Explore = () => {
     };
 
     fetchResources();
-  }, [query]);
+  }, [query, isPDFMode]);
 
   const applyFilters = (resourceList) => {
     let filtered = [...resourceList];
@@ -156,14 +176,34 @@ const Explore = () => {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            {query ? `Results for "${query}"` : 'Explore Learning Resources'}
+            {isPDFMode && pdfAnalysis ? (
+              <div className="flex items-center space-x-3">
+                <Sparkles className="w-8 h-8 text-purple-600" />
+                <span>Resources for Your PDF</span>
+              </div>
+            ) : query ? (
+              `Results for "${query}"`
+            ) : (
+              'Explore Learning Resources'
+            )}
           </h1>
           <p className="text-gray-600">
             {loading ? (
               <span className="flex items-center space-x-2">
                 <Loader2 className="animate-spin" size={16} />
-                <span>Searching for the best resources...</span>
+                <span>{isPDFMode ? 'Analyzing your PDF and finding resources...' : 'Searching for the best resources...'}</span>
               </span>
+            ) : isPDFMode && pdfAnalysis ? (
+              <div className="space-y-2">
+                <p>{filteredResources.length} personalized resources found based on your PDF content</p>
+                <div className="flex flex-wrap gap-2 text-sm">
+                  {pdfAnalysis.analysis.keywords.slice(0, 5).map((keyword, index) => (
+                    <span key={index} className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full">
+                      {keyword}
+                    </span>
+                  ))}
+                </div>
+              </div>
             ) : (
               <>
                 {filteredResources.length} resources found • AI-ranked by relevance and quality
@@ -193,6 +233,41 @@ const Explore = () => {
             </div>
           )}
         </div>
+
+        {/* PDF Analysis Summary */}
+        {isPDFMode && pdfAnalysis && !loading && (
+          <div className="bg-purple-50 rounded-xl p-6 mb-6 border border-purple-200">
+            <h3 className="text-lg font-semibold text-purple-800 mb-4 flex items-center">
+              <Brain className="w-5 h-5 mr-2" />
+              PDF Analysis Summary
+            </h3>
+            <div className="grid md:grid-cols-3 gap-4 mb-4">
+              <div>
+                <p className="text-sm text-purple-600">Word Count</p>
+                <p className="text-xl font-bold text-purple-800">{pdfAnalysis.analysis.wordCount}</p>
+              </div>
+              <div>
+                <p className="text-sm text-purple-600">Topics Found</p>
+                <p className="text-xl font-bold text-purple-800">{pdfAnalysis.analysis.topics.length}</p>
+              </div>
+              <div>
+                <p className="text-sm text-purple-600">Resources Found</p>
+                <p className="text-xl font-bold text-purple-800">{pdfAnalysis.resourceCount}</p>
+              </div>
+            </div>
+            
+            {pdfAnalysis.analysis.searchQueries.length > 0 && (
+              <div>
+                <p className="text-sm font-semibold text-purple-700 mb-2">Generated Search Queries:</p>
+                <div className="space-y-1">
+                  {pdfAnalysis.analysis.searchQueries.slice(0, 3).map((query, index) => (
+                    <p key={index} className="text-sm text-purple-600">• {query}</p>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Filters and Actions */}
         {!loading && (

@@ -1,9 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Sparkles, TrendingUp, BookOpen, Users } from 'lucide-react';
+import { Search, Sparkles, TrendingUp, BookOpen, Users, Upload, FileText, X } from 'lucide-react';
 
 const Home = () => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const handleSearch = (e) => {
@@ -11,6 +14,54 @@ const Home = () => {
     if (searchQuery.trim()) {
       navigate(`/explore?q=${encodeURIComponent(searchQuery.trim())}`);
     }
+  };
+
+  const handleFileSelect = async (e) => {
+    const file = e.target.files[0];
+    if (file && file.type === 'application/pdf') {
+      await handlePDFUpload(file);
+    } else {
+      setError('Please select a PDF file');
+    }
+  };
+
+  const handlePDFUpload = async (file) => {
+    setIsUploading(true);
+    setError('');
+    setUploadedFile(file);
+
+    const formData = new FormData();
+    formData.append('pdf', file);
+
+    try {
+      const response = await fetch('http://localhost:3001/api/upload-pdf', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Upload failed');
+      }
+
+      const data = await response.json();
+      
+      // Store PDF analysis data in sessionStorage for Explore page
+      sessionStorage.setItem('pdfAnalysis', JSON.stringify(data));
+      
+      // Navigate to explore page with PDF results
+      navigate('/explore?pdf=true');
+      
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const clearUploadedFile = () => {
+    setUploadedFile(null);
+    setError('');
   };
 
   const popularTopics = [
@@ -45,27 +96,87 @@ const Home = () => {
               Search once. Learn smarter. Let AI organize everything.
             </p>
 
-            {/* Large Search Bar */}
-            <form onSubmit={handleSearch} className="max-w-3xl mx-auto animate-scale-in animation-delay-300">
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none">
-                  <Search className="h-6 w-6 text-gray-400" />
+            {/* Enhanced Search Bar with PDF Upload */}
+            <div className="max-w-3xl mx-auto animate-scale-in animation-delay-300">
+              {!uploadedFile ? (
+                <form onSubmit={handleSearch} className="space-y-4">
+                  <div className="relative">
+                    <div className="absolute inset-y-0 left-0 pl-6 flex items-center pointer-events-none">
+                      <Search className="h-6 w-6 text-gray-400" />
+                    </div>
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Search any topic — e.g., Machine Learning, Data Structures, Quantum Physics"
+                      className="block w-full pl-14 pr-6 py-5 text-lg border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-darkBlue-200 focus:border-darkBlue-500 transition-all duration-200 shadow-lg hover:shadow-xl"
+                    />
+                    <button
+                      type="submit"
+                      className="absolute right-2 top-2 bottom-2 px-8 bg-gradient-to-r from-darkBlue-600 to-darkBlue-700 text-white rounded-xl font-semibold hover:from-darkBlue-700 hover:to-darkBlue-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                    >
+                      Search
+                    </button>
+                  </div>
+                  
+                  {/* PDF Upload Option */}
+                  <div className="text-center">
+                    <p className="text-sm text-gray-500 mb-3">or upload a PDF to get personalized learning resources</p>
+                    <div className="inline-flex items-center space-x-4">
+                      <input
+                        type="file"
+                        accept=".pdf"
+                        onChange={handleFileSelect}
+                        className="hidden"
+                        id="pdf-upload-home"
+                      />
+                      <label
+                        htmlFor="pdf-upload-home"
+                        className="inline-flex items-center px-6 py-3 bg-purple-600 text-white rounded-xl cursor-pointer hover:bg-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
+                      >
+                        <Upload className="w-5 h-5 mr-2" />
+                        Upload PDF
+                      </label>
+                    </div>
+                  </div>
+                </form>
+              ) : (
+                <div className="bg-white rounded-2xl p-6 shadow-lg border-2 border-purple-200">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center">
+                      <FileText className="w-6 h-6 text-purple-600 mr-3" />
+                      <div>
+                        <p className="font-semibold text-gray-800">{uploadedFile.name}</p>
+                        <p className="text-sm text-gray-500">
+                          {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={clearUploadedFile}
+                      className="p-2 text-gray-500 hover:text-gray-700"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                  
+                  {isUploading && (
+                    <div className="text-center py-4">
+                      <div className="inline-flex items-center space-x-2 text-purple-600">
+                        <Upload className="w-5 h-5 animate-pulse" />
+                        <span>Analyzing your PDF and finding resources...</span>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {error && (
+                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-red-600">{error}</p>
+                    </div>
+                  )}
                 </div>
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search any topic — e.g., Machine Learning, Data Structures, Quantum Physics"
-                  className="block w-full pl-14 pr-6 py-5 text-lg border-2 border-gray-200 rounded-2xl focus:ring-4 focus:ring-darkBlue-200 focus:border-darkBlue-500 transition-all duration-200 shadow-lg hover:shadow-xl"
-                />
-                <button
-                  type="submit"
-                  className="absolute right-2 top-2 bottom-2 px-8 bg-gradient-to-r from-darkBlue-600 to-darkBlue-700 text-white rounded-xl font-semibold hover:from-darkBlue-700 hover:to-darkBlue-800 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105"
-                >
-                  Search
-                </button>
-              </div>
-            </form>
+              )}
+            </div>
 
             {/* Popular Topics */}
             <div className="mt-12 animate-fade-in animation-delay-400">
